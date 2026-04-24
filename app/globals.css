@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+  background: #0b1326;
+  color: #dae2fd;
+}
+
+body {
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: #ff5168;
+  color: white;
+}
+
+/* ambient background blobs */
+.aura-blob {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.aura-blob::before,
+.aura-blob::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(100px);
+}
+.aura-blob::before {
+  top: -10%;
+  left: -10%;
+  width: 50vw;
+  height: 50vw;
+  background: radial-gradient(
+    circle at center,
+    rgba(255, 59, 92, 0.18) 0%,
+    rgba(11, 19, 38, 0) 70%
+  );
+}
+.aura-blob::after {
+  bottom: 20%;
+  right: -5%;
+  width: 40vw;
+  height: 40vw;
+  background: radial-gradient(
+    circle at center,
+    rgba(111, 0, 190, 0.12) 0%,
+    rgba(11, 19, 38, 0) 70%
+  );
+}
+
+/* glass panel */
+.glass {
+  background: rgba(23, 31, 51, 0.4);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.glass-strong {
+  background: rgba(11, 19, 38, 0.6);
+  backdrop-filter: blur(60px);
+  -webkit-backdrop-filter: blur(60px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* neon button shimmer */
+.btn-neon {
+  background: linear-gradient(90deg, #ff3b5c 0%, #ff5168 100%);
+  color: white;
+  box-shadow: 0 0 30px rgba(255, 59, 92, 0.45);
+  transition: transform 180ms ease, box-shadow 260ms ease;
+}
+.btn-neon:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 0 50px rgba(255, 59, 92, 0.7);
+}
+.btn-neon:active {
+  transform: scale(0.97);
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  backdrop-filter: blur(12px);
+  transition: all 220ms ease;
+}
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* game canvas */
+.game-surface {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: crosshair;
+}
+
+/* animated logo sweep */
+@keyframes sweep {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+.logo-sweep {
+  background: linear-gradient(
+    90deg,
+    #ffb3b6 0%,
+    #ff5168 40%,
+    #ddb7ff 60%,
+    #ffb3b6 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: sweep 6s linear infinite;
+}
+
+/* utility: no-scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+}
