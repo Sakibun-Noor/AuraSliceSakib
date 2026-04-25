@@ -19,7 +19,7 @@ const SLICE_PX_MS = 0.28
 const SLICE_WU_S  = 1.5
 
 // Exterior: nearly-black, mirror-polished
-const DARK  = '#0d0820'
+const DARK  = '#888888'
 
 // Interior neon colours — one per half so each reveals a different glow.
 // These exceed luminance 1.0 (toneMapped:false) which is what feeds Bloom.
