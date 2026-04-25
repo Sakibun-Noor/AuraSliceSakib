@@ -9,27 +9,15 @@ import * as THREE from 'three'
 
 const WHOLE_ARGS: [number, number, number] = [1, 1, 1]
 const HALF_ARGS:  [number, number, number] = [0.5, 1, 1]
-
-// Halves start just past the natural boundary so cannon doesn't see overlap.
 const HALF_OFFSET = 0.26
 
-/** Minimum speed (px/ms) for mouse & touch — ~280 px/s, fast drag not hover. */
-const SLICE_PX_MS = 0.28
-/** Minimum speed (world-units/s) for VR controller rays — brisk swing. */
-const SLICE_WU_S  = 1.5
-
-// Exterior: nearly-black, mirror-polished
+// Exterior color changed to light gray so you can easily see them!
 const DARK  = '#888888'
 
-// Interior neon colours — one per half so each reveals a different glow.
-// These exceed luminance 1.0 (toneMapped:false) which is what feeds Bloom.
 const CYAN    = '#00e5ff'
 const MAGENTA = '#ff00e5'
 
 // ── ParticleBurst ──────────────────────────────────────────────────────────────
-// 20 small glowing spheres spawned at the slice point, flying outward under
-// simulated gravity. Animated imperatively via useFrame to avoid per-sphere
-// React state. Auto-unmounts after LIFETIME seconds.
 
 const PARTICLE_COUNT    = 20
 const PARTICLE_LIFETIME = 1.0   // seconds
@@ -39,7 +27,6 @@ function ParticleBurst({ origin }: { origin: THREE.Vector3 }) {
   const ageRef   = useRef(0)
   const [dead, setDead] = useState(false)
 
-  // Generate random velocities once — never recomputed.
   const velocities = useRef(
     Array.from({ length: PARTICLE_COUNT }, () =>
       new THREE.Vector3(
@@ -50,7 +37,6 @@ function ParticleBurst({ origin }: { origin: THREE.Vector3 }) {
     )
   )
 
-  // Alternate cyan / magenta to echo the two half materials.
   const colors = useRef(
     Array.from({ length: PARTICLE_COUNT }, (_, i) => (i % 2 === 0 ? CYAN : MAGENTA))
   )
@@ -64,16 +50,15 @@ function ParticleBurst({ origin }: { origin: THREE.Vector3 }) {
       return
     }
 
-    const t     = ageRef.current / PARTICLE_LIFETIME  // 0 → 1
+    const t     = ageRef.current / PARTICLE_LIFETIME  
     const alpha = 1 - t
-    const scale = 0.1 * (1 - t * 0.55)               // shrink as they fade
+    const scale = 0.1 * (1 - t * 0.55)               
 
     meshRefs.current.forEach((mesh, i) => {
       if (!mesh) return
       const vel = velocities.current[i]
       const age = ageRef.current
 
-      // Ballistic arc: constant lateral vel + parabolic vertical.
       mesh.position.set(
         origin.x + vel.x * age,
         origin.y + vel.y * age - 4.9 * age * age,
@@ -83,7 +68,7 @@ function ParticleBurst({ origin }: { origin: THREE.Vector3 }) {
 
       const mat = mesh.material as THREE.MeshStandardMaterial
       mat.opacity           = alpha
-      mat.emissiveIntensity = alpha * 5   // stays above Bloom threshold while bright
+      mat.emissiveIntensity = alpha * 5   
     })
   })
 
@@ -97,13 +82,12 @@ function ParticleBurst({ origin }: { origin: THREE.Vector3 }) {
           ref={(el) => { meshRefs.current[i] = el }}
           position={[origin.x, origin.y, origin.z]}
         >
-          {/* Unit sphere — scale is driven by useFrame, not geometry size. */}
           <sphereGeometry args={[1, 7, 6]} />
           <meshStandardMaterial
             color={colors.current[i]}
             emissive={colors.current[i]}
             emissiveIntensity={5}
-            toneMapped={false}    // luminance > 1 → feeds Bloom
+            toneMapped={false}    
             transparent
             opacity={1}
           />
@@ -113,13 +97,11 @@ function ParticleBurst({ origin }: { origin: THREE.Vector3 }) {
   )
 }
 
-// ── WholeBox ──────────────────────────────────────────────────────────────────
-// Static physics body. Listens for fast pointer movement and passes the
-// exact 3-D hit point back so SliceableTarget can anchor the particle burst.
+// ── WholeBox (Updated for Instant Click/Swipe) ────────────────────────────────
 
 interface WholeBoxProps {
   position: [number, number, number]
-  onSlice: (point: THREE.Vector3) => void   // ← now carries the hit point
+  onSlice: (point: THREE.Vector3) => void   
 }
 
 function WholeBox({ position, onSlice }: WholeBoxProps) {
@@ -129,57 +111,27 @@ function WholeBox({ position, onSlice }: WholeBoxProps) {
     position,
   }))
 
-  const prevRef  = useRef<{ x: number; y: number; point: THREE.Vector3; t: number } | null>(null)
-  const firedRef = useRef(false)  // prevents double-fire from overlapping events
-
-  const detect = useCallback(
-    (e: ThreeEvent<PointerEvent>) => {
-      if (firedRef.current) return
-      e.stopPropagation()
-
-      const now  = performance.now()
-      const prev = prevRef.current
-
-      if (prev !== null) {
-        const dt = Math.max(1, now - prev.t)
-
-        // ── Path A: VR controller ray — world-space hit-point velocity ────
-        const wu_s = e.point.distanceTo(prev.point) / (dt / 1000)
-        if (wu_s >= SLICE_WU_S) {
-          firedRef.current = true
-          onSlice(e.point.clone())
-          return
-        }
-
-        // ── Path B: Mouse / touch — screen-space pixel velocity ───────────
-        const dx    = e.clientX - prev.x
-        const dy    = e.clientY - prev.y
-        const px_ms = Math.sqrt(dx * dx + dy * dy) / dt
-        if (px_ms >= SLICE_PX_MS) {
-          firedRef.current = true
-          onSlice(e.point.clone())
-          return
-        }
-      }
-
-      prevRef.current = { x: e.clientX, y: e.clientY, point: e.point.clone(), t: now }
-    },
-    [onSlice]
-  )
-
   return (
     <mesh
       ref={ref}
       castShadow
       receiveShadow
-      onPointerMove={detect}
-      onPointerEnter={detect}
+      // INSTANT SLICE: Triggers the absolute second your mouse clicks or touches it
+      onPointerDown={(e) => {
+        e.stopPropagation()
+        onSlice(e.point.clone())
+      }}
+      // INSTANT SLICE: Triggers if you swipe your mouse over it
+      onPointerOver={(e) => {
+        e.stopPropagation()
+        onSlice(e.point.clone())
+      }}
     >
       <boxGeometry args={WHOLE_ARGS} />
       <meshStandardMaterial
         color={DARK}
         emissive="#1a0040"
-        emissiveIntensity={0.25}   // below Bloom threshold — subtle inner glow only
+        emissiveIntensity={0.25}   
         roughness={0.05}
         metalness={0.95}
       />
@@ -188,12 +140,6 @@ function WholeBox({ position, onSlice }: WholeBoxProps) {
 }
 
 // ── HalfBox ───────────────────────────────────────────────────────────────────
-// Dynamic physics body with a multi-material mesh: five dark exterior faces
-// and one neon cut face (the freshly revealed interior).
-//
-// BoxGeometry group order: +X=0  −X=1  +Y=2  −Y=3  +Z=4  −Z=5
-// Left  half → cut face is +X (index 0): inner edge faces right toward centre.
-// Right half → cut face is −X (index 1): inner edge faces left toward centre.
 
 interface HalfBoxProps {
   position: [number, number, number]
@@ -211,8 +157,6 @@ function HalfBox({ position, vx, innerFaceIndex, neonColor }: HalfBoxProps) {
     angularDamping: 0.1,
   }))
 
-  // Build the 6-slot material array imperatively so we can share the dark
-  // material across five faces while the neon material takes exactly one slot.
   const materials = useMemo(() => {
     const dark = new THREE.MeshStandardMaterial({
       color: DARK,
@@ -222,7 +166,7 @@ function HalfBox({ position, vx, innerFaceIndex, neonColor }: HalfBoxProps) {
     const neon = new THREE.MeshStandardMaterial({
       color: neonColor,
       emissive: neonColor,
-      emissiveIntensity: 5,   // >> 1 with toneMapped:false → Bloom-ready
+      emissiveIntensity: 5,   
       roughness: 0.02,
       metalness: 0,
       toneMapped: false,
@@ -232,13 +176,10 @@ function HalfBox({ position, vx, innerFaceIndex, neonColor }: HalfBoxProps) {
     return arr
   }, [innerFaceIndex, neonColor])
 
-  // Dispose both unique material objects (dark appears at 5 slots but is one
-  // object; Set deduplicates so dispose is called exactly once per instance).
   useEffect(() => {
     return () => { new Set(materials).forEach((m) => m.dispose()) }
   }, [materials])
 
-  // Strict-mode guard: React 18 double-invokes effects in dev.
   const boostedRef = useRef(false)
   useEffect(() => {
     if (boostedRef.current) return
@@ -251,7 +192,6 @@ function HalfBox({ position, vx, innerFaceIndex, neonColor }: HalfBoxProps) {
     )
   }, [api, vx])
 
-  // material prop accepts Material[] — Three.js uses group indices to select.
   return (
     <mesh ref={ref} material={materials} castShadow>
       <boxGeometry args={HALF_ARGS} />
@@ -266,7 +206,6 @@ interface SliceableTargetProps {
 }
 
 export default function SliceableTarget({ position }: SliceableTargetProps) {
-  // null = unsliced; Vector3 = sliced, value is the exact 3-D hit point.
   const [slicePoint, setSlicePoint] = useState<THREE.Vector3 | null>(null)
 
   const handleSlice = useCallback((point: THREE.Vector3) => {
@@ -276,23 +215,18 @@ export default function SliceableTarget({ position }: SliceableTargetProps) {
   if (slicePoint !== null) {
     return (
       <>
-        {/* Left half — cyan inner face, flies left */}
         <HalfBox
           position={[position[0] - HALF_OFFSET, position[1], position[2]]}
           vx={-4}
           innerFaceIndex={0}
           neonColor={CYAN}
         />
-
-        {/* Right half — magenta inner face, flies right */}
         <HalfBox
           position={[position[0] + HALF_OFFSET, position[1], position[2]]}
           vx={4}
           innerFaceIndex={1}
           neonColor={MAGENTA}
         />
-
-        {/* Particle burst anchored at the exact pointer intersection */}
         <ParticleBurst origin={slicePoint} />
       </>
     )
